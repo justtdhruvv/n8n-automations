@@ -27,7 +27,7 @@
             },
             {
               "name": "X-API-KEY",
-              "value": "f2fbe9ede522eef73fbed5db8522171a27dc9a85"
+              "value": "use-your-api-key"
             }
           ]
         },
@@ -114,7 +114,7 @@
           "parameters": [
             {
               "name": "api_key",
-              "value": "c144986a1a12b1d3037b0304177dd65b"
+              "value": "use-yout-api"
             },
             {
               "name": "url",
@@ -176,7 +176,7 @@
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
-          "id": "xl9kWqVL9EB1VxPp",
+          "id": "your-sheets-id",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
@@ -286,7 +286,7 @@
           "parameters": [
             {
               "name": "api_key",
-              "value": "c144986a1a12b1d3037b0304177dd65b"
+              "value": "your-api-key"
             },
             {
               "name": "url",
@@ -347,7 +347,7 @@
       "name": "Google Gemini Chat Model1",
       "credentials": {
         "googlePalmApi": {
-          "id": "xl9kWqVL9EB1VxPp",
+          "id": "your-id",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
