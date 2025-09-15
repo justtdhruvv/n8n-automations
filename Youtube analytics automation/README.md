@@ -55,16 +55,3 @@ The workflow leverages **AI (Google Gemini)** + **Google Sheets/Docs integration
 
 ---
 
-## 📸 Visual Flow (Simplified)
-
-```mermaid
-flowchart TD
-    A[Webhook Trigger] --> B[Filter Lead Source/Status]
-    B --> C[Format Lead Data]
-    C --> D{Has Notes?}
-    D -->|Yes| E[AI Agent Analysis]
-    E --> F{Valid Inquiry?}
-    F -->|Yes| G[Prepare Email Fields]
-    G --> H[Convert to HTML]
-    H --> I[Send Email]
-    F -->|No| J[Invalid Lead Message]
