@@ -1,0 +1,727 @@
+{
+  "name": "Lead gen scarper wo linked in",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -368
+      ],
+      "id": "8ff5a2af-85bf-49d0-82ea-2150e9e37f0f",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-KEY",
+              "value": "f2fbe9ede522eef73fbed5db8522171a27dc9a85"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"q\": \"{{ $json.search_query }}\",\n  \"num\": 20\n}\n ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        272,
+        -368
+      ],
+      "id": "51992247-a2a1-4081-b49a-18057e92498b",
+      "name": "Serper Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kEC10DHQC1zaWMKO",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Serper returns JSON with \"organic\" results array\nconst results = items[0].json.organic || [];\nconst leads = [];\n\nfor (const r of results) {\n  if (!r.link) continue;\n\n  leads.push({\n    json: {\n      company_name: (r.title || \"\").replace(/\\|.*$/, \"\").trim(),\n      website: r.link,\n      snippet: r.snippet || \"\",\n      status: \"raw_from_serper\"\n    }\n  });\n}\n\nreturn leads;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        -368
+      ],
+      "id": "7cc06c44-469e-4395-a37b-2527281b8ffb",
+      "name": "parse search results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all the leads from the previous node\nconst leads = $input.all().map((item) => item.json);\n\n// This is our new, smarter blocklist. It looks for patterns, not just names.\nconst junkKeywords = [\n  'top 10', 'top 20', 'best agencies', 'best companies', 'top rated',\n  'reviews of', 'list of', 'directory of', 'find the best', 'agencies in',\n  'firms in', 'jobs in', 'has anyone', 'reddit.com', 'youtube.com',\n  'indeed.com', 'glassdoor.com', 'clutch.co', 'designrush.com',\n  'goodfirms.co', 'themanifest.com'\n];\n\nconst normalizedLeads = leads\n  .map((lead) => {\n    // Clean up the company name and website URL\n    let cleanCompanyName = lead.company_name\n      .split(' - ')[0]\n      .split(' • ')[0]\n      .split(' (@')[0]\n      .trim();\n    \n    let cleanWebsite = lead.website.trim();\n    if (cleanWebsite.endsWith('/')) {\n      cleanWebsite = cleanWebsite.slice(0, -1);\n    }\n    \n    return {\n      company_name: cleanCompanyName,\n      website: cleanWebsite,\n      original_title: lead.title, // Keep the original title for checking\n      original_snippet: lead.snippet, // Keep the original snippet for checking\n      status: \"normalized\"\n    };\n  })\n  .filter((lead) => {\n    // Now, check if the original title or website contains any junk keywords\n    const textToSearch = (lead.original_title + ' ' + lead.website).toLowerCase();\n    \n    const isJunk = junkKeywords.some(keyword => textToSearch.includes(keyword));\n    \n    // Return true only if it's NOT junk\n    return !isJunk;\n  });\n\nreturn normalizedLeads;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -368
+      ],
+      "id": "3557123f-4c3f-4d32-8063-5e29b7d07304",
+      "name": "Normalize leads",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        944,
+        -368
+      ],
+      "id": "08ffd88b-db63-4d89-9dd1-47eacd985480",
+      "name": "Loop Over Items",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 1.5
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1168,
+        -480
+      ],
+      "id": "5269fd8a-9a1d-4812-ab98-dd8cceb440b4",
+      "name": "Wait",
+      "webhookId": "8e6e905b-6613-4d83-9c4d-15dacbdd171d"
+    },
+    {
+      "parameters": {
+        "url": "=http://api.scraperapi.com",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "api_key",
+              "value": "c144986a1a12b1d3037b0304177dd65b"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.website }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        -480
+      ],
+      "id": "a4b401b5-dd77-4873-97e7-83fe699435f0",
+      "name": "Fetch Homepage",
+      "alwaysOutputData": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following HTML and extract all contact details: {{ $json.data }}",
+        "options": {
+          "systemMessage": "=## System Prompt\nYou are an expert-level Data Extraction Bot. Your sole purpose is to meticulously analyze raw HTML content from a company's webpage and extract every possible piece of contact information. You must be thorough, accurate, and systematic in your approach.\n\n## Your Task\n\nYou will be given raw HTML as input. Your task is to parse this HTML and identify all contact details. You must then structure this information into a single, clean Markdown table.\n\n## Information to Extract\n\nYou must find the following types of information:\n\nContact-Related Page Links:\n\nScour all <a> tags.\n\nIdentify any link that helps a user contact or learn more about the company.\n\nLook for anchor text containing keywords like: Contact, About Us, Support, Connect, Get in Touch, Help, Locations, Careers, Press, Inquiries.\n\nExtract the full, absolute URL from the href attribute. If the link is relative (e.g., /contact), construct the full URL based on the main website's domain.\n\nCapture the link's anchor text (the visible text of the link).\n\nEmail Addresses:\n\nSearch for all mailto: links within href attributes.\n\nScan the entire text content of the HTML for email address patterns (e.g., name@domain.com). Be thorough, as they are often not in <a> tags.\n\nPhone Numbers:\n\nSearch for all tel: links within href attributes.\n\nScan the entire text content for common phone number formats, including international codes, extensions, and different uses of parentheses, dashes, and spaces.\n\nPhysical Addresses:\n\nLook for structured address formats, often found in the page <footer> or within elements with classes like address or location.\n\nIdentify components like street names, city, state/province, postal codes, and country.\n\nPay attention to schema.org/PostalAddress microdata if present.\n\nOther Contact Methods:\n\nSocial Media: Extract links to primary social media platforms like LinkedIn, X (Twitter), Facebook, Instagram, etc.\n\nContact Forms: If you find a link to a page that contains a contact form, list that URL.\n\n## Output Format\n\nYou MUST format your entire output as a \n\n  {\n    \"Contact Method\": \"Contact Page Link\",\n    \"Detail\": \"https://www.tmpb2b.com/en-gb/contact-us\",\n    \"Notes / Source Text\": \"Contact us, Talk to us, Connect with us\"\n  },\n  {\n    \"Contact Method\": \"About Page Link\",\n    \"Detail\": \"https://www.tmpb2b.com/en-gb/about\",\n    \"Notes / Source Text\": \"About us, Read all about us\"\n  },\n  {\n    \"Contact Method\": \"Careers Page Link\",\n    \"Detail\": \"https://www.tmpb2b.com/en-gb/culture-and-careers\",\n    \"Notes / Source Text\": \"Careers\"\n  },\n  {\n    \"Contact Method\": \"LinkedIn Profile\",\n    \"Detail\": \"https://www.linkedin.com/company/the-marketing-practice/posts/?feedView=all\",\n    \"Notes / Source Text\": \"LinkedIn\"\n  },\n  {\n    \"Contact Method\": \"Instagram Profile\",\n    \"Detail\": \"https://www.instagram.com/themarketingpractice/?hl=en\",\n    \"Notes / Source Text\": \"Instagram\"\n  }\n\nso it flows well in n8n \n\n\nIf you dont get any available emails on the home page  then write no emails found on email page but only after a thorough check to never miss onee !"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        -480
+      ],
+      "id": "961ace10-61d7-4afe-b70d-a0e98fda71a7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        -256
+      ],
+      "id": "42cd47f0-9810-4fcb-921f-f7fb70676502",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xl9kWqVL9EB1VxPp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8b63ae6a-cf26-4a3e-882d-d2e6cdae34b1",
+              "name": "search_query",
+              "value": "web designing agency ahmedabad",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48,
+        -368
+      ],
+      "id": "8c02f8c2-1d27-4183-9cb4-dd109ad28c8e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6ab66308-bd6a-4545-ad5a-5de3ab4766aa",
+              "leftValue": "={{ $json['Contact Method'] }}",
+              "rightValue": "Contact Page Link",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "1f729687-7ba3-47ad-8e58-8e7c3bbb2fde",
+              "leftValue": "={{ $json['Contact Method'] }}",
+              "rightValue": "About Page Link",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "fe1d229e-e833-44c9-ad6e-07727dda37ff",
+              "leftValue": "={{ $json['Contact Method'] }}",
+              "rightValue": "Careers Page Link",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "faba28a0-d13b-4891-af75-a7f6358cc93b",
+              "leftValue": "={{ $json['Contact Method'] }}",
+              "rightValue": "LinkedIn Profile",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "63572f9d-3f08-4e84-8fd3-0f26933b7ef0",
+              "leftValue": "={{ $json[\"Contact Method\"] }}",
+              "rightValue": "Contact Form Link",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2192,
+        -608
+      ],
+      "id": "d7171fe3-33ab-42d6-bd62-bd1ebd5c1749",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "url": "http://api.scraperapi.com",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "api_key",
+              "value": "c144986a1a12b1d3037b0304177dd65b"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.Detail }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        -480
+      ],
+      "id": "abfa514c-ad84-473f-a791-69ccb08b4db7",
+      "name": "HTTP Request1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following HTML and extract all contact details:  {{ $json.data }}",
+        "options": {
+          "systemMessage": "## System Prompt\nYou are a specialist data extractor. Your only goal is to find email addresses and phone numbers within the provided HTML of a company's contact page.\n\n## Your Task\n1.  Meticulously scan the entire HTML for any email addresses (mailto: links or plain text) and any phone numbers (tel: links or plain text in various formats).\n2.  If you cannot find any direct emails or phone numbers, check for the presence of a contact form (look for <form> tags associated with text like \"contact us,\" \"send a message,\" or \"get in touch\").\n3.  You MUST output your findings as a single, clean JSON object. Do not provide any text, explanation, or markdown fences before or after the JSON.\n\n## Output Format\nYour entire output must be ONLY the JSON object, structured exactly like this:\n{\n  \"emails\": [\"email@example.com\", \"another@example.com\"],\n  \"phones\": [\"+1-555-123-4567\", \"(555) 987-6543\"],\n  \"contact_form_present\": true,\n  \"summary\": \"Found two emails and a contact form on the page.\"\n}\n\n## Rules\n- If no emails are found, the \"emails\" array should be empty: [].\n- If no phone numbers are found, the \"phones\" array should be empty: [].\n- If no contact form is detected, \"contact_form_present\" should be false.\n- The summary should be a brief, one-sentence description of what you found."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        -480
+      ],
+      "id": "7066f3f6-2ad3-4c6c-9433-8c030e7c0a22",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        -256
+      ],
+      "id": "fea964eb-2a3c-4cc5-bb4c-9f99a417c098",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xl9kWqVL9EB1VxPp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node receives all the separate findings from the deep scan\nconst allItems = $input.all();\nconst aggregatedResult = {\n  emails: [],\n  phones: [],\n  contact_form_present: false,\n  summaries: []\n};\n\n// Loop through each finding (from the about page, contact page, etc.)\nfor (const item of allItems) {\n  // 1. Get the raw string from the 'output' field.\n  const rawOutput = item.json.output;\n  if (!rawOutput) continue; // Skip if the AI returned nothing.\n\n  try {\n    // 2. Clean the string to remove markdown and get the pure JSON.\n    const jsonString = rawOutput.replace(/```json\\n|\\n```/g, '').trim();\n    if (!jsonString) continue; // Skip if the string is empty after cleaning.\n\n    // 3. Parse the string into a usable object. THIS IS THE STEP WE MISSED.\n    const data = JSON.parse(jsonString);\n\n    // 4. Now, the original aggregation logic will work on the clean data.\n    if (data.emails && data.emails.length > 0) {\n      aggregatedResult.emails.push(...data.emails);\n    }\n    if (data.phones && data.phones.length > 0) {\n      aggregatedResult.phones.push(...data.phones);\n    }\n    if (data.contact_form_present) {\n      aggregatedResult.contact_form_present = true;\n    }\n    if (data.summary) {\n      aggregatedResult.summaries.push(data.summary);\n    }\n  } catch (error) {\n    // This will prevent the workflow from crashing if the AI returns bad JSON.\n    console.error(\"Could not parse AI output:\", item.json.output, error);\n  }\n}\n\n// IMPORTANT: Remove any duplicate emails or phone numbers\naggregatedResult.emails = [...new Set(aggregatedResult.emails)];\naggregatedResult.phones = [...new Set(aggregatedResult.phones)];\n\n// Return a single, clean object with all the combined results\nreturn [{ json: aggregatedResult }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2992,
+        -480
+      ],
+      "id": "c181f776-8025-4a21-9988-306052c55e4e",
+      "name": "output combiner"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3440,
+        -240
+      ],
+      "id": "bd133889-5cb8-4adf-9f14-e5c8be7a4713",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3216,
+        -608
+      ],
+      "id": "ef00da1b-ac49-4d96-ba00-8f68a1cd5bc2",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "content": "### Section 1: Initialization & Search 🚀\nThis section's job is to take your input and get a list of potential websites from Google.\n\nManual Trigger: The \"Go\" button for the entire workflow.\n\nEdit Fields (Set): This is your control panel.\n\nPurpose: To define the Google search query for this run.\n\nKey Config: The search_query variable is set here (e.g., \"web designing agency ahmedabad\").\n\nSerper Search: The Google searcher.\n\nPurpose: Executes a Google search using the query from the \"Edit Fields\" node.\n\nKey Config: The q parameter in the JSON body is set to {{ $json.search_query }}",
+        "height": 624,
+        "width": 656
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -832
+      ],
+      "id": "a3b760d6-a6c6-4017-a630-31ddadd45266",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "### Section 2: Lead Parsing & Smart Filtering 🧹\nThis section cleans up the raw Google results and removes junk.\n\nparse search results: The first cleanup step.\n\nPurpose: Converts the raw, complex JSON from Serper into a simple list of leads containing company_name, website, and snippet.\n\nNormalize leads: The smart filter.\n\nPurpose: Cleans up the company names and website URLs. Most importantly, it filters out directories (clutch.co, designrush.com) and junk results (youtube, reddit, job listings) by searching for keywords in the search result titles.\n\nOutput: A clean list of high-quality leads to be processed.",
+        "height": 624,
+        "width": 448,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -832
+      ],
+      "id": "eb7f1a32-5b9f-4fb1-b705-6a3b7889f3ff",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "### Section 3: Main Loop & Homepage Scraping 🔄\nThis section processes each lead from the clean list, one by one.\n\nLoop Over Items: The engine of the workflow.\n\nPurpose: Takes the list of leads and processes them sequentially.\n\nKey Config: Batch Size is set to 1 to ensure it processes one company completely before starting the next.\n\nWait: The politeness node.\n\nPurpose: Pauses for 1.5 seconds between requests to avoid overwhelming a company's server.\n\nFetch Homepage: The first scraper.\n\nPurpose: Scrapes the full HTML content of the lead's main website.\n\nKey Config: The url parameter is set to ={{ $json.website }} from the looped item.",
+        "height": 1056,
+        "width": 640,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        896,
+        -1104
+      ],
+      "id": "34d62d5a-f2b6-443f-82ad-339b1be6ae80",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "### Section 4: Homepage Analysis (First Pass AI) 🤖\nThis section does a quick scan of the homepage to find potential clues.\n\nAI Agent: The generalist investigator.\n\nPurpose: Analyzes the raw HTML of the homepage.\n\nKey Config: Its system prompt asks it to find all potential contact links, social media profiles, and any other contact info, and to format it as a table.\n\nFormat output: The data splitter.\n\nPurpose: Takes the single text output from the AI and splits it into multiple separate items (one for each link, one for each email found, etc.).",
+        "height": 976,
+        "width": 576,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        -1008
+      ],
+      "id": "ede4bd45-b89b-45ae-a268-aea824081d62",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input string from the previous node\nconst rawOutput = items[0].json.output;\n\n// 1. Clean the string to remove the Markdown \"```json\" fences\n//    This isolates the pure JSON array text.\nconst jsonString = rawOutput.replace(/```json\\n|\\n```/g, '');\n\n// 2. Parse the clean string into a JavaScript array\nconst dataArray = JSON.parse(jsonString);\n\n// 3. Return the data so n8n creates a separate item for each object\n//    This is the key step to get separate objects as the output.\nreturn dataArray.map(item => {\n  return {\n    json: item\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        -480
+      ],
+      "id": "818816ba-32e6-4117-af41-785c0de912b6",
+      "name": "Format output"
+    },
+    {
+      "parameters": {
+        "content": "### Section 5: Deep Scan Branch 🕵️‍♂️\nThis is the advanced part. It takes the clues from the homepage and investigates them further.\n\nIF Node: The gatekeeper.\n\nPurpose: Filters the items from the homepage scan, only allowing useful links (containing \"Contact\", \"About\", \"Career\", etc.) to pass through for a deeper scan.\n\nFetch Contact Page: The second scraper.\n\nPurpose: Scrapes the HTML of the specific internal pages (e.g., the About Us page) that the IF node allowed through.\n\nKey Config: The url parameter is set to ={{ $json.Detail }}.\n\nAI Agent1 (AI Deep Scan): The specialist investigator.\n\nPurpose: Analyzes the HTML from the internal pages with the single goal of finding emails and phone numbers.\n\nKey Config: Its system prompt asks it to return only a clean JSON object, making the data easy to use.",
+        "height": 1024,
+        "width": 720,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        -1056
+      ],
+      "id": "b9f83d03-5d94-4881-bdb7-3fac2bd15eb5",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "### Section 6: Data Aggregation & Saving 💾\nThis is the final assembly line where all the data is collected and saved.\n\nAggregate Results: The collector.\n\nPurpose: Gathers all the findings from the multiple pages scanned in the deep scan branch and combines them into one clean object, removing any duplicate emails or phone numbers.\n\nMerge: The final assembler.\n\nPurpose: Combines the original lead info (company name, website) with the aggregated findings from the deep scan.\n\n",
+        "height": 1008,
+        "width": 672,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2928,
+        -1056
+      ],
+      "id": "f86f1042-2b3d-4e90-91a6-90e21ed8e110",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper Search": {
+      "main": [
+        [
+          {
+            "node": "parse search results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse search results": {
+      "main": [
+        [
+          {
+            "node": "Normalize leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize leads": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Fetch Homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Homepage": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Serper Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "output combiner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "output combiner": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format output": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e9bbddf1-063b-4a13-8d53-7ad7d29890eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "98ec8c37cf808af2d4467728c278701715561b3c0d43ee67781bc9f0c5e54cde"
+  },
+  "id": "L62is5s0wRZ4951K",
+  "tags": []
+}
