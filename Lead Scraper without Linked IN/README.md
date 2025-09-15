@@ -50,22 +50,3 @@ The workflow combines **Serper API**, **ScraperAPI**, and **Google Gemini (AI)**
 
 ---
 
-## 📂 Workflow Overview
-
-```mermaid
-flowchart TD
-    A[Manual Trigger / Query Input] --> B[Serper Search]
-    B --> C[Parse Search Results]
-    C --> D[Normalize Leads + Filter Junk]
-    D --> E[Loop Over Leads]
-    E --> F[Wait (1.5s Delay)]
-    F --> G[Fetch Homepage]
-    G --> H[AI Agent - Homepage Scan]
-    H --> I[Format Output]
-    I --> J{Useful Link?}
-    J -->|Yes| K[Fetch Internal Page]
-    K --> L[AI Agent Deep Scan]
-    L --> M[Output Combiner]
-    M --> N[Merge Final Results]
-    J -->|No| N
-    N --> O[Clean JSON Output (Company + Contacts)]
